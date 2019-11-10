@@ -13,7 +13,6 @@ search_result = {}
 def searcher(key, st, ed):
     result = []
     temp = []
-
     if key not in search_result:
         [result.append(x) for x in wenku8.searcher(key)]
         [result.append(x) for x in epubst.searcher(key)]
@@ -31,11 +30,11 @@ def searcher(key, st, ed):
                                                 text='Surprise!')
                             ]))
     if result_len > ed + 1:
-        temp[ed] = CarouselColumn(
+        temp[9] = CarouselColumn(
             thumbnail_image_url=
             'https://i.giphy.com/media/Nm8ZPAGOwZUQM/giphy.webp',
             title='Total result {}'.format(result_len),
-            text='now is in range {} - {}'.format(st + 1, ed + 1),
+            text='now is in range {} - {}'.format(st + 1, ed),
             actions=[
                 PostbackAction(label='show next page',
                                 display_text='next page',
