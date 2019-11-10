@@ -22,25 +22,24 @@ def searcher(key, st, ed):
     result_len = len(result)
     for i in range(st, min(result_len, ed + 1)):
         temp.append(
-            CarouselColumn(thumbnail_image_url=result[i]['cover_url'],
-                            title=result[i]['type'],
-                            text=result[i]['title'],
-                            actions=[
-                                MessageAction(label='Surprise!',
-                                                text='Surprise!')
-                            ]))
+            CarouselColumn(
+                thumbnail_image_url=result[i]['cover_url'],
+                title=result[i]['type'],
+                text=result[i]['title'],
+                actions=[MessageAction(label='Surprise!', text='Surprise!')]))
     if result_len > ed + 1:
         temp[9] = CarouselColumn(
             thumbnail_image_url=
             'https://i.giphy.com/media/Nm8ZPAGOwZUQM/giphy.webp',
             title='Total result {}'.format(result_len),
-            text='now is in range {} - {}'.format(st + 1, ed),
+            text='瀏覽下一頁 {} - {}'.format(ed + 1, min(result_len, ed + 9)),
             actions=[
                 PostbackAction(label='show next page',
-                                display_text='next page',
-                                data='show {} {} {}'.format(
-                                    key, ed,
-                                    min(result_len, ed + 9)))
+                               display_text='總共有{}個搜尋結果，現在正在預覽{} - {}'.format(
+                                   result_len, ed + 1, min(result_len,
+                                                           ed + 9)),
+                               data='show {} {} {}'.format(
+                                   key, ed, min(result_len, ed + 9)))
             ])
     return temp
 
@@ -80,7 +79,8 @@ def command(opt, client, event):
         st = int(opt[2])
         ed = int(opt[3])
         template_message = TemplateSendMessage(
-            alt_text='result', template=CarouselTemplate(columns=searcher(key, st, ed)))
+            alt_text='result',
+            template=CarouselTemplate(columns=searcher(key, st, ed)))
         client.reply_message(event.reply_token, template_message)
 
 
