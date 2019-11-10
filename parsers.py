@@ -109,7 +109,7 @@ class WENKUParser:
                                 'https://scontent-tpe1-1.xx.fbcdn.net/v/t1.0-9/74647587_111092293665052_7033169574681903104_o.jpg?_nc_cat=102&_nc_oc=AQluJKJ8qFV3PeoMjbbByUusf7Gw-x9d6u7TR_T_lvtp3mvOoN5RFX-y4-PN3zQkyMo&_nc_ht=scontent-tpe1-1.xx&oh=451f14474310c4c1f8fc6ce639dd5731&oe=5E51C17D'
                             }))
                     if (i == max_page + 1):
-                        break
+                        return result
                     time.sleep(5)
                     url = self.search_url.format(
                         requests.utils.quote(
@@ -160,22 +160,18 @@ class EPUBSITEParser:
             if '找不到與查詢字詞' in soup.find('h2', class_='pagetitle').text:
                 raise NoSearchError
             else:
-                results = soup.find_all('a',
-                                        rel='bookmark',
-                                        text=re.compile(key))
-                results = soup.find_all('div', class_='date-outer')
-                # pprint(results)
+                results = soup.find_all('div', class_='post-outer')
                 for result in results:
                     temp = result.find('a',
                                        rel='bookmark',
-                                       text=re.compile(key))
+                                       title=re.compile(r'Permalink to'))
                     rest.append(
                         dict({
                             'aid':
                             temp['href'].replace(self.base_url,
                                                  '').replace('.html', ''),
                             'title':
-                            temp.text,
+                            temp['title'].replace('Permalink to ', ''),
                             'type':
                             'epubst',
                             'cover_url':
