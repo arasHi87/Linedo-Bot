@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import re
 import time
@@ -29,9 +30,9 @@ class WENKUParser:
         self.search_url = 'https://www.wenku8.net/modules/article/search.php?searchtype=articlename&searchkey={}'
         self.download_url = 'http://dl.wenku8.com/packtxt.php?aid={}&vid={}&charset=big5'
         self.wenku_session = requests.Session()
-        self.wenku_data = {}
+        self.data = {}
         with open('config/data.json', 'r', encoding='utf8') as fp:
-            self.wenku_data = json.load(fp)['wenku']
+            self.data = json.load(fp)
 
     def login(self):
         # login into wenku
@@ -86,16 +87,15 @@ class WENKUParser:
             raise WenkuGetMainPageError
 
     def get_cover(self, aid, url):
-        if str(aid) not in self.wenku_data['cover']:
+        if str(aid) not in self.data['wenku']['cover']:
             try:
-                self.wenku_data['cover'][str(aid)] = upload_to_imgur(
-                    url)
+                self.data['wenku']['cover'][str(aid)] = upload_to_imgur(url)
                 with open('config/data.json', 'w', encoding='utf8') as fp:
-                    json.dump(self.wenku_data, fp)
+                    json.dump(self.data, fp)
             except Exception as e:
                 logger.warn(e)
                 return 'https://avatars2.githubusercontent.com/u/33758217?s=460&v=4'
-        return self.wenku_data['cover'][str(aid)]
+        return self.data['wenku']['cover'][str(aid)]
 
     # def searcher(self, key):
     #     result = []
@@ -169,26 +169,28 @@ class WENKUParser:
         result = {}
         rating = 0
         key = OpenCC('tw2s').convert(key)
-        for idx in self.wenku_data['data'].keys():
-            result[idx] = fuzz.partial_token_set_ratio(
-                self.wenku_data['data'][idx], key)
+        for idx in self.data['wenku']['data'].keys():
+            score = fuzz.partial_token_set_ratio(
+                self.data['wenku']['data'][idx], key)
+            if score > 50:
+                result[idx] = score
         result = collections.OrderedDict(
             sorted(result.items(), key=operator.itemgetter(1), reverse=True))
         for idx in result:
-            if result[idx] < 50:
-                break
-            temp = self.wenku_data['data'][idx]
-            ret.append(dict({
+            temp = self.data['wenku']['data'][idx]
+            main_page = self.get_main_page(idx)[str(idx)]
+            ret.append(
+                dict({
                     'aid':
                     str(idx),
                     'title':
                     temp['title'],
                     'type':
                     'wenku',
+                    'main_url':
+                    main_page['content_table_url'].replace('http:', 'https:'),
                     'cover_url':
-                    self.get_cover(
-                        idx,
-                        self.get_main_page(idx)[str(idx)]['cover_url'])
+                    self.get_cover(idx, main_page['cover_url'])
                 }))
         return ret
 
@@ -222,6 +224,8 @@ class EPUBSITEParser:
                             temp['title'].replace('Permalink to ', ''),
                             'type':
                             'epubst',
+                            'main_url':
+                            temp['href'].replace('http:', 'https:'),
                             'cover_url':
                             result.find('img')['src'].replace(
                                 'http:', 'https:')
@@ -235,5 +239,6 @@ class EPUBSITEParser:
 
 
 if __name__ == '__main__':
-    # WENKUParser().get_main_page(34)
-    EPUBSITEParser().searcher('乙女')
+    result = []
+    [result.append(x) for x in WENKUParser().searcher('乙女')]
+    [result.append(x) for x in EPUBSITEParser().searcher('無職')]
