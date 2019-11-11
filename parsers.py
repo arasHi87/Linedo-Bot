@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import json
 import requests
 import collections
 import urllib.request
@@ -9,6 +10,7 @@ import http.cookiejar as cookielib
 from pprint import pprint
 from opencc import OpenCC
 from logger import logger
+from utils import upload_to_imgur
 from bs4 import BeautifulSoup as bs
 from errors import (WenkuLoginError, WenkuGetMainPageError, EpubstSeachError,
                     NoSearchError)
@@ -25,6 +27,9 @@ class WENKUParser:
         self.search_url = 'https://www.wenku8.net/modules/article/search.php?searchtype=articlename&searchkey={}'
         self.download_url = 'http://dl.wenku8.com/packtxt.php?aid={}&vid={}&charset=big5'
         self.wenku_session = requests.Session()
+        self.wenku_cover = {}
+        with open('config/data.json', 'r', encoding='utf8') as fp:
+            self.wenku_cover = json.load(fp)
 
     def login(self):
         # login into wenku
@@ -77,6 +82,17 @@ class WENKUParser:
             }
         except:
             raise WenkuGetMainPageError
+    
+    def get_cover(self, aid, url):
+        if str(aid) not in self.wenku_cover:
+            try:
+                self.wenku_cover['wenku'][str(aid)] = upload_to_imgur(url)
+                with open('config/data.json', 'w', encoding='utf8') as fp:
+                    json.dump(self.wenku_cover, fp)
+            except Exception as e:
+                logger.warn(e)
+                return 'https://avatars2.githubusercontent.com/u/33758217?s=460&v=4'
+        return self.wenku_cover['wenku'][str(aid)]
 
     def searcher(self, key):
         result = []
@@ -107,7 +123,7 @@ class WENKUParser:
                                 'type':
                                 'wenku',
                                 'cover_url':
-                                'https://scontent-tpe1-1.xx.fbcdn.net/v/t1.0-9/74647587_111092293665052_7033169574681903104_o.jpg?_nc_cat=102&_nc_oc=AQluJKJ8qFV3PeoMjbbByUusf7Gw-x9d6u7TR_T_lvtp3mvOoN5RFX-y4-PN3zQkyMo&_nc_ht=scontent-tpe1-1.xx&oh=451f14474310c4c1f8fc6ce639dd5731&oe=5E51C17D'
+                                self.get_cover(aid, self.get_main_page(aid)[str(aid)]['cover_url'])
                             }))
                     if (i == max_page + 1):
                         return result
@@ -135,7 +151,7 @@ class WENKUParser:
                         'type':
                         'wenku',
                         'cover_url':
-                        'https://scontent-tpe1-1.xx.fbcdn.net/v/t1.0-9/74647587_111092293665052_7033169574681903104_o.jpg?_nc_cat=102&_nc_oc=AQluJKJ8qFV3PeoMjbbByUusf7Gw-x9d6u7TR_T_lvtp3mvOoN5RFX-y4-PN3zQkyMo&_nc_ht=scontent-tpe1-1.xx&oh=451f14474310c4c1f8fc6ce639dd5731&oe=5E51C17D'
+                        self.get_cover(aid, self.get_main_page(aid)[str(aid)]['cover_url'])
                     }))
             return result
         except WenkuLoginError:
