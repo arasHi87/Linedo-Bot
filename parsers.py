@@ -2,6 +2,7 @@ import os
 import re
 import time
 import json
+import operator
 import requests
 import collections
 import urllib.request
@@ -10,6 +11,7 @@ import http.cookiejar as cookielib
 from pprint import pprint
 from opencc import OpenCC
 from logger import logger
+from fuzzywuzzy import fuzz
 from utils import upload_to_imgur
 from bs4 import BeautifulSoup as bs
 from errors import (WenkuLoginError, WenkuGetMainPageError, EpubstSeachError,
@@ -27,9 +29,9 @@ class WENKUParser:
         self.search_url = 'https://www.wenku8.net/modules/article/search.php?searchtype=articlename&searchkey={}'
         self.download_url = 'http://dl.wenku8.com/packtxt.php?aid={}&vid={}&charset=big5'
         self.wenku_session = requests.Session()
-        self.wenku_cover = {}
+        self.wenku_data = {}
         with open('config/data.json', 'r', encoding='utf8') as fp:
-            self.wenku_cover = json.load(fp)
+            self.wenku_data = json.load(fp)['wenku']
 
     def login(self):
         # login into wenku
@@ -82,84 +84,113 @@ class WENKUParser:
             }
         except:
             raise WenkuGetMainPageError
-    
+
     def get_cover(self, aid, url):
-        if str(aid) not in self.wenku_cover:
+        if str(aid) not in self.wenku_data['cover']:
             try:
-                self.wenku_cover['wenku'][str(aid)] = upload_to_imgur(url)
+                self.wenku_data['cover'][str(aid)] = upload_to_imgur(
+                    url)
                 with open('config/data.json', 'w', encoding='utf8') as fp:
-                    json.dump(self.wenku_cover, fp)
+                    json.dump(self.wenku_data, fp)
             except Exception as e:
                 logger.warn(e)
                 return 'https://avatars2.githubusercontent.com/u/33758217?s=460&v=4'
-        return self.wenku_cover['wenku'][str(aid)]
+        return self.wenku_data['cover'][str(aid)]
+
+    # def searcher(self, key):
+    #     result = []
+    #     try:
+    #         self.login()
+    #         key = OpenCC('tw2s').convert(key)
+    #         resp = self.wenku_session.get(url=self.search_url.format(
+    #             requests.utils.quote(key, encoding='gbk')))
+    #         resp.encoding = 'gbk'
+    #         soup = bs(resp.text, 'html.parser')
+
+    #         # get search result
+    #         if soup.find('caption', text=re.compile('搜索结果')):
+    #             # multi search result
+    #             max_page = int(soup.find('a', class_='last').text)
+    #             for i in range(2, max_page + 2):
+    #                 novels = soup.find_all('a', text=re.compile(key))
+    #                 # self.get_main_page(aid)[str(aid)]['cover_url']
+    #                 for novel in novels:
+    #                     aid = re.findall(r'[/][0-9]+',
+    #                                      novel['href'])[0].replace('/', '')
+    #                     result.append(
+    #                         dict({
+    #                             'aid':
+    #                             aid,
+    #                             'title':
+    #                             novel.text,
+    #                             'type':
+    #                             'wenku',
+    #                             'cover_url':
+    #                             self.get_cover(aid, self.get_main_page(aid)[str(aid)]['cover_url'])
+    #                         }))
+    #                 if (i == max_page + 1):
+    #                     return result
+    #                 time.sleep(5)
+    #                 url = self.search_url.format(
+    #                     requests.utils.quote(
+    #                         key, encoding='gbk')) + '&page=' + str(i)
+    #                 resp = self.wenku_session.get(url=url)
+    #                 resp.encoding = 'gbk'
+    #                 soup = bs(resp.text, 'html.parser')
+    #         else:
+    #             # singal search
+    #             aid = re.findall(r'=[0-9]+',
+    #                              soup.find('a',
+    #                                        text='加入书架')['href'])[0].replace(
+    #                                            '=', '')
+    #             temp = self.get_main_page(aid)[str(aid)]
+    #             title = temp['title']
+    #             result.append(
+    #                 dict({
+    #                     'aid':
+    #                     str(aid),
+    #                     'title':
+    #                     title,
+    #                     'type':
+    #                     'wenku',
+    #                     'cover_url':
+    #                     self.get_cover(aid, self.get_main_page(aid)[str(aid)]['cover_url'])
+    #                 }))
+    #         return result
+    #     except WenkuLoginError:
+    #         logger.error('Fail to login wenku8, try later')
+    #     except WenkuGetMainPageError:
+    #         logger.error(
+    #             'Fail to get main page, plese check your payload and try later'
+    #         )
 
     def searcher(self, key):
-        result = []
-        try:
-            self.login()
-            key = OpenCC('tw2s').convert(key)
-            resp = self.wenku_session.get(url=self.search_url.format(
-                requests.utils.quote(key, encoding='gbk')))
-            resp.encoding = 'gbk'
-            soup = bs(resp.text, 'html.parser')
-
-            # get search result
-            if soup.find('caption', text=re.compile('搜索结果')):
-                # multi search result
-                max_page = int(soup.find('a', class_='last').text)
-                for i in range(2, max_page + 2):
-                    novels = soup.find_all('a', text=re.compile(key))
-                    # self.get_main_page(aid)[str(aid)]['cover_url']
-                    for novel in novels:
-                        aid = re.findall(r'[/][0-9]+',
-                                         novel['href'])[0].replace('/', '')
-                        result.append(
-                            dict({
-                                'aid':
-                                aid,
-                                'title':
-                                novel.text,
-                                'type':
-                                'wenku',
-                                'cover_url':
-                                self.get_cover(aid, self.get_main_page(aid)[str(aid)]['cover_url'])
-                            }))
-                    if (i == max_page + 1):
-                        return result
-                    time.sleep(5)
-                    url = self.search_url.format(
-                        requests.utils.quote(
-                            key, encoding='gbk')) + '&page=' + str(i)
-                    resp = self.wenku_session.get(url=url)
-                    resp.encoding = 'gbk'
-                    soup = bs(resp.text, 'html.parser')
-            else:
-                # singal search
-                aid = re.findall(r'=[0-9]+',
-                                 soup.find('a',
-                                           text='加入书架')['href'])[0].replace(
-                                               '=', '')
-                temp = self.get_main_page(aid)[str(aid)]
-                title = temp['title']
-                result.append(
-                    dict({
-                        'aid':
-                        str(aid),
-                        'title':
-                        title,
-                        'type':
-                        'wenku',
-                        'cover_url':
-                        self.get_cover(aid, self.get_main_page(aid)[str(aid)]['cover_url'])
-                    }))
-            return result
-        except WenkuLoginError:
-            logger.error('Fail to login wenku8, try later')
-        except WenkuGetMainPageError:
-            logger.error(
-                'Fail to get main page, plese check your payload and try later'
-            )
+        ret = []
+        result = {}
+        rating = 0
+        key = OpenCC('tw2s').convert(key)
+        for idx in self.wenku_data['data'].keys():
+            result[idx] = fuzz.partial_token_set_ratio(
+                self.wenku_data['data'][idx], key)
+        result = collections.OrderedDict(
+            sorted(result.items(), key=operator.itemgetter(1), reverse=True))
+        for idx in result:
+            if result[idx] < 50:
+                break
+            temp = self.wenku_data['data'][idx]
+            ret.append(dict({
+                    'aid':
+                    str(idx),
+                    'title':
+                    temp['title'],
+                    'type':
+                    'wenku',
+                    'cover_url':
+                    self.get_cover(
+                        idx,
+                        self.get_main_page(idx)[str(idx)]['cover_url'])
+                }))
+        return ret
 
 
 class EPUBSITEParser:
