@@ -3,7 +3,7 @@ from pprint import pprint
 from logger import logger
 from linebot.models import (MessageAction, CarouselColumn, URIAction,
                             TextSendMessage, CarouselTemplate,
-                            TemplateSendMessage, PostbackAction)
+                            TemplateSendMessage, PostbackAction, URIAction)
 
 wenku8 = WENKUParser()
 epubst = EPUBSITEParser()
@@ -22,11 +22,10 @@ def searcher(key, st, ed):
     result_len = len(result)
     for i in range(st, min(result_len, ed + 1)):
         temp.append(
-            CarouselColumn(
-                thumbnail_image_url=result[i]['cover_url'],
-                title=result[i]['type'],
-                text=result[i]['title'],
-                actions=[MessageAction(label='Surprise!', text='Surprise!')]))
+            CarouselColumn(thumbnail_image_url=result[i]['cover_url'],
+                           title=result[i]['type'],
+                           text=result[i]['title'],
+                           actions=[URIAction(label='前往網站觀看', uri=result[i]['main_url'])]))
     if result_len > ed + 1:
         temp[9] = CarouselColumn(
             thumbnail_image_url=
